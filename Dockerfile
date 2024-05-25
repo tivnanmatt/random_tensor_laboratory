@@ -1,29 +1,37 @@
-# Use the official Miniconda3 image as a base
-FROM continuumio/miniconda3
-
-# Set the working directory in the container
-WORKDIR /app
+# Use the official NVIDIA CUDA image with Conda pre-installed as a base
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
 
 # Install necessary system packages
-RUN apt-get update && apt-get install -y wget git libgl1-mesa-glx && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y wget git libgl1-mesa-glx gnupg software-properties-common
 
-# Install Python and other dependencies with Conda
-RUN conda install python=3.10 -y 
-RUN conda install -c nvidia/label/cuda-12.1.1 cuda-toolkit -y 
-RUN conda install -c pytorch -c nvidia pytorch torchvision torchaudio pytorch-cuda=12.1 -y
-RUN conda install matplotlib -y
-RUN conda install scipy -y 
-RUN conda install ffmpeg -y 
+# Download and install Miniconda
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
+    bash miniconda.sh -b -p /miniconda && \
+    rm miniconda.sh
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+# Set the path to include the Conda bin directory
+ENV PATH /miniconda/bin:$PATH
 
-# Make port 80 available to the world outside this container
-EXPOSE 80
+# Initialize Conda in bash (not necessary for activation, but can be useful for other purposes)
+RUN conda init bash
 
-# Define environment variable
-ENV NAME World
+# Initialize the conda environment
+COPY environment.yml /environment.yml
+RUN conda env create --name "random_tensor_laboratory" -f environment.yml
 
-# Specify the command to run on container start
-CMD ["conda", "run", "-n", "base", "python", "app.py"]
+# Activate the conda environment for interactive shell sessions
+SHELL ["conda", "run", "-n", "random_tensor_laboratory", "/bin/bash", "-c"]
+
+WORKDIR /opt
+RUN git clone https://github.com/LLNL/LEAP.git
+WORKDIR /opt/LEAP
+RUN pip install -v .
+WORKDIR /
+
+# copy the directory random_tensor_laboratory to the container
+WORKDIR /home
+RUN git clone https:///github.com/tivnanmatt/random_tensor_laboratory.git
+WORKDIR /home/random_tensor_laboratory/random_tensor_laboratory
+# RUN pip install -e .
+# WORKDIR /
+

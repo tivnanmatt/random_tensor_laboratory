@@ -7,5 +7,5 @@ setup(name='rtl',
       author='Matthew Tivnan',
       author_email='tivnanmatt@gmail.com',
       license='MIT',
-      packages=['rtl'],
+      packages=['random_tensor_laboratory'],
       zip_safe=False)
