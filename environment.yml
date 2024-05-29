@@ -1,18 +1,18 @@
 name: random_tensor_laboratory
 channels:
   - conda-forge
-  - nvidia
   - defaults
 dependencies:
   - python=3.10
   - cmake>=3.23
-  - matplotlib
-  - scipy
   - ffmpeg
   - pip
-  - numpy
   - pip:
     - torch
     - torchvision
     - torchaudio
+    - pyyaml
+    - matplotlib
+    - scipy 
+    - numpy 
     

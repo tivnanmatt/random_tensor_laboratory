@@ -73,10 +73,10 @@ class PolarCoordinateResampler(RealLinearOperator):
         This method implements the forward pass of the polar coordinate transformation.
 
         parameters:
-            x: torch.Tensor of shape [batch_size, num_channel, num_row, num_col]
+            x: torch.Tensor 
                 The input image to which the polar coordinate transformation should be applied.
         returns:
-            result: torch.Tensor of shape [batch_size, num_channel, num_theta, num_radius]
+            result: torch.Tensor 
                 The result of applying the polar coordinate transformation to the input image.
         """
 
@@ -93,10 +93,10 @@ class PolarCoordinateResampler(RealLinearOperator):
         This method implements the transpose pass of the polar coordinate transformation.
 
         parameters:
-            y: torch.Tensor of shape [batch_size, num_channel, num_theta, num_radius]
+            y: torch.Tensor 
                 The input image to which the adjoint polar coordinate transformation should be applied.
         returns:
-            result: torch.Tensor of shape [batch_size, num_channel, num_row, num_col]
+            result: torch.Tensor 
                 The result of applying the adjoint polar coordinate transformation to the input image.
         """
 

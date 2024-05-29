@@ -1,3 +1,4 @@
+content = """
 # Random Tensor Laboratory
 
 ## Overview
@@ -15,6 +16,7 @@ Random Tensor Laboratory (RTL) is a Python library designed for advanced tensor 
 ## Installation
 
 To install the Random Tensor Laboratory package, clone the repository and install the requirements:
+
 
 ```
 git clone https://github.com/tivnanmatt/random_tensor_laboratory.git
@@ -103,3 +105,7 @@ Contributions are welcome! Please follow these steps:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+"""
+
+with open("README.md", "w") as file:
+    file.write(content)
