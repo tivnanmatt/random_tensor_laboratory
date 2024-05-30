@@ -1,4 +1,4 @@
-
+# random_tensor_laboratory/linalg/core.py
 import torch
 
 class LinearOperator(torch.nn.Module):
@@ -369,13 +369,13 @@ class HermitianLinearOperator(SquareLinearOperator):
         return self.forward(y)
     
     def conjugate_transpose_LinearOperator(self):
-        return super().conjugate_transpose_LinearOperator()
+        return self
     
     def conjugate(self, x: torch.Tensor) -> torch.Tensor:
         return self.transpose(x)
     
     def conjugate_LinearOperator(self):
-        return super().conjugate_LinearOperator()
+        return self.transpose_LinearOperator()
     
 
 class SymmetricLinearOperator(SquareLinearOperator):
@@ -416,7 +416,10 @@ class SymmetricLinearOperator(SquareLinearOperator):
                 The result of applying the adjoint of the linear operator to the input tensor.
         """
         return self.conjugate(y)
-
+    
+    def transpose_LinearOperator(self):
+        return self
+    
 class ScalarLinearOperator(SymmetricLinearOperator, InvertibleLinearOperator):
     def __init__(self, scalar):
         """
@@ -470,17 +473,25 @@ class ScalarLinearOperator(SymmetricLinearOperator, InvertibleLinearOperator):
             raise ValueError("The scalar is zero, so the inverse does not exist.")
         return ScalarLinearOperator(1/self.scalar)
     
+    def sqrt_LinearOperator(self):
+        return ScalarLinearOperator(torch.sqrt(self.scalar))
+
     def mat_add(self, added_scalar_matrix):
         assert isinstance(added_scalar_matrix, (ScalarLinearOperator)), "ScalarLinearOperator addition only supported for ScalarLinearOperator." 
-        scalar = ScalarLinearOperator(self.scalar + added_scalar_matrix.scalar)
+        return ScalarLinearOperator(self.scalar + added_scalar_matrix.scalar)
     
     def mat_sub(self, sub_scalar_matrix):
         assert isinstance(sub_scalar_matrix, (ScalarLinearOperator)), "ScalarLinearOperator subtraction only supported for ScalarLinearOperator." 
-        scalar = ScalarLinearOperator(self.scalar - sub_scalar_matrix.scalar)
+        return ScalarLinearOperator(self.scalar - sub_scalar_matrix.scalar)
 
     def mat_mul(self, mul_scalar_matrix):
-        assert isinstance(mul_scalar_matrix, (ScalarLinearOperator)), "ScalarLinearOperator multiplication only supported for ScalarLinearOperator." 
-        scalar = ScalarLinearOperator(self.scalar * mul_scalar_matrix.scalar)
+        if isinstance(mul_scalar_matrix, torch.Tensor):
+            return self.forward(mul_scalar_matrix)
+        elif isinstance(mul_scalar_matrix, ScalarLinearOperator):
+            return ScalarLinearOperator(self.scalar * mul_scalar_matrix.scalar)
+        else:
+            raise ValueError("Unsupported type for matrix multiplication.")
+    
 
 
 class DiagonalLinearOperator(SquareLinearOperator):
@@ -522,6 +533,9 @@ class DiagonalLinearOperator(SquareLinearOperator):
             raise ValueError("The diagonal vector contains zeros, so the inverse does not exist.")
         return DiagonalLinearOperator(self.input_shape, 1/self.diagonal_vector)
     
+    def sqrt_LinearOperator(self):
+        return DiagonalLinearOperator(self.input_shape, torch.sqrt(self.diagonal_vector))
+
     def mat_add(self, added_diagonal_matrix):
         assert isinstance(added_diagonal_matrix, (DiagonalLinearOperator)), "DiagonalLinearOperator addition only supported for DiagonalLinearOperator." 
         assert self.input_shape == added_diagonal_matrix.input_shape, "DiagonalLinearOperator addition only supported for DiagonalLinearOperator with same input shape."
@@ -610,7 +624,7 @@ class TransposeLinearOperator(LinearOperator):
             
         assert isinstance(base_matrix_operator, LinearOperator), "The linear operator should be a LinearOperator object."
 
-        super(TransposeLinearOperator, self).__init__(base_matrix_operator.output_shape, base_matrix_operator.input_shape)
+        super(TransposeLinearOperator, self).__init__()
 
         self.base_matrix_operator = base_matrix_operator  
         
