@@ -1,5 +1,5 @@
 # mnist_denoising_example.py
-
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,8 +12,8 @@ from random_tensor_laboratory.networks import DenseNet
 batch_size = 64
 learning_rate = 1e-4
 num_epochs = 100
-iterations_per_epoch = 10
-noise_level = 0.1
+iterations_per_epoch = 100
+noise_level = 0.4
 
 # MNIST dataset
 transform = transforms.Compose([
@@ -27,7 +27,7 @@ train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=
 # Define the DenseNet model
 input_shape = (1, 28, 28)
 output_shape = (1, 28, 28)
-hidden_channels_list = [1024]
+hidden_channels_list = [1024, 2048, 4096, 2048, 1024]
 activation = 'prelu'
 
 model = DenseNet(input_shape=input_shape, output_shape=output_shape, hidden_channels_list=hidden_channels_list, activation=activation)
@@ -60,5 +60,12 @@ for epoch in range(num_epochs):
     
     epoch_loss = running_loss / (iterations_per_epoch)
     print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}')
+
+
+
+# save the weights to a file
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_path = os.path.join(script_dir, 'mnist_denoising.pth')
+torch.save(model.state_dict(), output_path)
 
 print('Training completed.')

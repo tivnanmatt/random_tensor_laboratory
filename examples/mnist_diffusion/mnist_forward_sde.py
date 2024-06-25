@@ -6,13 +6,14 @@ from torch.utils.data import DataLoader
 from random_tensor_laboratory.diffusion.sde import SongVariancePreservingProcess
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import os
 
 # Hyperparameters
 batch_size = 64
 num_timesteps = 32
 beta = 5.0
-noise_level = 0.1
-output_file = '/home/random_tensor_laboratory/examples/mnist_sde_forward_process.mp4'
+# noise_level = 0.1
+# output_file = '/home/random_tensor_laboratory/examples/mnist_sde_forward_process.mp4'
 
 # MNIST dataset
 transform = transforms.Compose([
@@ -53,8 +54,11 @@ def update_frame(timestep_index):
     print('Animating frame ', timestep_index, ' of ', len(timesteps))
     return axes
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_path = os.path.join(script_dir, 'mnist_sde_forward_process.mp4')
+
 ani = animation.FuncAnimation(fig, update_frame, frames=len(timesteps), interval=100, repeat=False)
 writer = animation.FFMpegWriter(fps=10)
-ani.save(output_file, writer=writer)
+ani.save(output_path, writer=writer)
 
-print('Video saved to', output_file)
+print('Video saved to', output_path)

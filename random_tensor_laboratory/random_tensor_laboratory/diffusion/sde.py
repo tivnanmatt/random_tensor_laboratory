@@ -12,12 +12,12 @@ import numpy as np
 class StochasticDifferentialEquation(nn.Module):
     def __init__(self, f, G):
         """
-        This class implements a stochastic differential equation (SDE) of the form 
+        This class implements an Ito stochastic differential equation (SDE) of the form 
         
         dx = f(x, t) dt + G(x, t) dw
-
-        where f is a vector-valued function of x and t representing the drift term 
-        and G is a matrix-valued function of x and t representing the diffusion rates.
+        
+        f is a vector-valued function of x and t representing the drift term 
+        and G is a matrix-valued function of x and t representing the diffusion rate.
 
         parameters:
             f: callable
@@ -34,13 +34,13 @@ class StochasticDifferentialEquation(nn.Module):
     
     def reverse_SDE_given_score_estimator(self, score_estimator):
         """
-        This method returns the time reversed StoachsticDifferentialEquation given a score function estimator.
+        This method returns the time reversed StochasticDifferentialEquation given a score function estimator.
 
         The time reversed SDE is given by
 
         dx = f*(x, t) dt + G(x, t) dw
 
-        where f*(x, t) = f(x, t) - G(x, t) G(x, t)^T score_estimator(x, t)
+        where f*(x, t) = f(x, t) - div_x( G(x,t) G(x,t)^T ) - G(x, t) G(x, t)^T score_estimator(x, t)
 
         parameters:
             score_estimator: callable
@@ -49,14 +49,34 @@ class StochasticDifferentialEquation(nn.Module):
             sde: StochasticDifferentialEquation
                 The time reversed SDE.
         """
-
         _f = self.f
         _G = self.G
 
-        _f_star = lambda x, t: _f(x, t) - _G(x, t) @ _G(x, t).transpose_LinearOperator() @ score_estimator(x, t)
+        def compute_divergence_fn(GG_T, x):
+            x_flattened = x.view(-1)  # Flatten the x tensor
+            div = torch.zeros_like(x_flattened)
+            for i in range(x_flattened.shape[0]):
+                unit_vector = torch.zeros_like(x_flattened)
+                unit_vector[i] = 1.0
+                GG_T_unit = GG_T(unit_vector.view_as(x)).view(-1)
+                try:
+                    grad = torch.autograd.grad(GG_T_unit.sum(), x, retain_graph=True, create_graph=True)[0]
+                    div[i] = grad.view(-1)[i]
+                except RuntimeError:
+                    # If gradient computation fails, set divergence to zero
+                    div[i] = 0.0
+            return div.view_as(x)  # Reshape the divergence to the original shape of x
+
+        def _f_star(x, t):
+            G_t = _G(x, t)
+            G_tT = G_t.transpose_LinearOperator()
+            GG_T = lambda v: G_t(G_tT(v))  # Define GG_T as a function to apply G_t and its transpose
+
+            div_GG_T = compute_divergence_fn(GG_T, x)
+            return _f(x, t) - div_GG_T - GG_T(score_estimator(x, t))
 
         return StochasticDifferentialEquation(f=_f_star, G=_G)
-    
+
     def sample(self, x, timesteps, sampler='euler', return_all=False):
         """
         This method samples from the SDE.
@@ -146,7 +166,7 @@ class StochasticDifferentialEquation(nn.Module):
         if isinstance(dt, float):
             dt = torch.tensor(dt)
 
-        dw = torch.randn_like(x) * torch.sqrt(dt)
+        dw = torch.randn_like(x) * torch.sqrt(torch.abs(dt))
 
         _f = self.f(x, t)
         assert isinstance(_f, torch.Tensor), "The drift term f(x, t) should return a tensor."
@@ -191,11 +211,11 @@ class StochasticDifferentialEquation(nn.Module):
         x_predict = x + f_t * dt + G_t @ dw
 
         # Corrector step
-        f_t_predict = self.f(x_predict, t + dt)
-        G_t_predict = self.G(x_predict, t + dt)
+        f_t_corrector = self.f(x_predict, t + dt)
+        G_t_corrector = self.G(x_predict, t + dt)
 
-        f_avg = (f_t + f_t_predict) / 2
-        G_dw_avg = (G_t @ dw + G_t_predict @ dw) / 2
+        f_avg = (f_t + f_t_corrector) / 2
+        G_dw_avg = (G_t @ dw + G_t_corrector @ dw) / 2
 
         return x + f_avg * dt + G_dw_avg
     
@@ -254,7 +274,42 @@ class HomogeneousSDE(StochasticDifferentialEquation):
         _G = lambda x, t: self._G(t)
 
         super(HomogeneousSDE, self).__init__(f=_f, G=_G)
+        
+    def reverse_SDE_given_score_estimator(self, score_estimator):
+        """
+        This method returns the time reversed StochasticDifferentialEquation given a score function estimator.
 
+        The time reversed SDE is given by
+
+        dx = f*(x, t) dt + G(x, t) dw
+
+        where f*(x, t) = f(x, t) - div_x( G(x,t) G(x,t)^T ) - G(x, t) G(x, t)^T score_estimator(x, t)
+
+        parameters:
+            score_estimator: callable
+                The score estimator function that takes x, t, as input and returns the score function estimate.
+        returns:
+            sde: StochasticDifferentialEquation
+                The time reversed SDE.
+        """
+        _f = self.f
+        _G = self.G
+
+        def compute_divergence(GG_T, x):
+            # divergence always zero for operators that do not depend on x
+            div = torch.zeros_like(x)
+            return div  
+
+        def _f_star(x, t):
+            G_t = _G(x, t)
+            G_tT = G_t.transpose_LinearOperator()
+            GG_T = lambda v: G_t(G_tT(v))  # Define GG_T as a function to apply G_t and its transpose
+
+            div_GG_T = compute_divergence(GG_T, x)
+            return _f(x, t) - div_GG_T - GG_T(score_estimator(x, t))
+
+        return StochasticDifferentialEquation(f=_f_star, G=_G)    
+    
     def mean_response_x_t_given_x_0(self, x0, t):
         """
         Computes the mean response of x_t given x_0.
@@ -466,8 +521,6 @@ class SongVariancePreservingProcess(ScalarSDE):
 # class MeixnerProcess(nn.Module):
 # class GeneralizedHyperbolicProcess(nn.Module):
 # class NormalInverseGaussianProcess(nn.Module):
-
-
 
 
     
