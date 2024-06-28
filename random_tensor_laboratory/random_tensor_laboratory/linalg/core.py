@@ -107,6 +107,18 @@ class LinearOperator(torch.nn.Module):
     def conjugate_transpose_LinearOperator(self):
         return ConjugateTransposeLinearOperator(self)    
     
+    def sqrt_LinearOperator(self):
+        raise NotImplementedError
+    
+    def inv_LinearOperator(self):
+        return InverseLinearOperator(self)
+    
+    def logdet(self):
+        raise NotImplementedError
+    
+    def det(self):
+        return torch.exp(self.logdet())
+    
     def _pseudoinverse_weighted_average(self, y: torch.Tensor):
         """
         This method implements the pseudoinverse of the linear operator using a weighted average.
